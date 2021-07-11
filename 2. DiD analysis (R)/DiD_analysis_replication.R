@@ -11,13 +11,12 @@ library(ggpubr)
 #Setup
 rm(list = ls())
 graphics.off()
-input_path<-"enter input folder here"
-output_path<-"enter output folder here"
+input_path<-"insert path of input folder"
+output_path<-"insert path of output folder"
 
 # Import
 setwd(input_path)
-df <- read_dta(file = "dataset_final_normalized2015.dta")
-df_2014 <- read_dta(file = "dataset_final_normalized2014.dta")
+df <- read_dta(file = "dataset_final_normalized2014.dta") #can be used on both 2014 or 2015 normalized data
 codebook_goods <- read.csv("Codebook.csv")
 setwd(output_path)
 
@@ -48,15 +47,6 @@ for (i in 1:48) {
   }
   else {
     df[i,1]<-"Euro-Zone"   
-  }
-}
-df_2014<-remove_all_labels(df_2014)
-for (i in 1:48) {
-  if (df_2014[i,1]==2) {
-    df_2014[i,1]<-"Switzerland"
-  }
-  else {
-    df_2014[i,1]<-"Euro-Zone"   
   }
 }
 
@@ -139,7 +129,8 @@ p1_fitted <- ggplot(df) +
         legend.box.margin=margin(-15,0,0,0),
         plot.margin = unit(c(0.1,0.1,0,-0.4), "cm"))+
   scale_color_manual(values = c( "#000000", "#d40000"))+
-  scale_x_continuous(labels = months_quarters_labels3, breaks = n24_2)
+  scale_x_continuous(labels = months_quarters_labels3, breaks = n24_2)+
+  ylim(99,102.2)
 
 pdf("fig1.pdf", width=6, height=3.5)
 p1_fitted
@@ -154,7 +145,7 @@ euro_before1<-didreg1$fitted.values[1]
 euro_after1<-didreg1$fitted.values[18]
 CH_before1<-didreg1$fitted.values[28]
 CH_after1<-didreg1$fitted.values[45]
-  
+
 p2_fitted <- ggplot(df) +
   theme_classic() + 
   ggtitle("a) Liquid fuels")+
@@ -173,10 +164,11 @@ p2_fitted <- ggplot(df) +
         legend.position = "none",
         legend.margin=margin(0,0,0,0),
         legend.box.margin=margin(-15,0,0,0),
-        plot.margin = unit(c(0.1,0.1,0.3,-0.4), "cm"),
+        plot.margin = unit(c(0.3,0.1,0.3,-0.4), "cm"),
         plot.title = element_text(size=16))+
   scale_color_manual(values = c( "#000000", "#d40000"))+
-  scale_x_continuous(labels = months_quarters_labels3, breaks = n24_2)
+  scale_x_continuous(labels = months_quarters_labels3, breaks = n24_2)+
+  ylim(60,100)
 
 # Holidays
 didreg2 <- lm(x_323 ~ treated + time + did, data = df)
@@ -203,10 +195,11 @@ p3_fitted <- ggplot(df) +
         legend.position = "none",
         legend.margin=margin(0,0,0,0),
         legend.box.margin=margin(-15,0,0,0),
-        plot.margin = unit(c(0.1,0.1,0.3,-0.4), "cm"),
+        plot.margin = unit(c(0.3,0.1,0.3,-0.4), "cm"),
         plot.title = element_text(size=16))+
   scale_color_manual(values = c( "#000000", "#d40000"))+
-  scale_x_continuous(labels = months_quarters_labels3, breaks = n24_2)
+  scale_x_continuous(labels = months_quarters_labels3, breaks = n24_2)+
+  ylim(80,120)
 
 # Books with fitted values
 didreg3 <- lm(x_31 ~ treated + time + did, data = df)
@@ -233,10 +226,11 @@ p4_fitted <- ggplot(df) +
         legend.position = "none",
         legend.margin=margin(0,0,0,0),
         legend.box.margin=margin(-15,0,0,0),
-        plot.margin = unit(c(0.1,0.1,0.3,-0.4), "cm"),
+        plot.margin = unit(c(0.3,0.1,0.3,-0.4), "cm"),
         plot.title = element_text(size=16))+
   scale_color_manual(values = c( "#000000", "#d40000"))+
-  scale_x_continuous(labels = months_quarters_labels3, breaks = n24_2)
+  scale_x_continuous(labels = months_quarters_labels3, breaks = n24_2)+
+  ylim(90,105)
 
 # grid display of the 3
 p2<-ggarrange(p2_fitted, p3_fitted, p4_fitted, nrow=1,common.legend = TRUE, legend="bottom")
