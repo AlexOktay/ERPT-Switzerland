@@ -11,12 +11,13 @@ library(ggpubr)
 #Setup
 rm(list = ls())
 graphics.off()
-input_path<-"insert path of input folder"
-output_path<-"insert path of output folder"
+input_path<-"input folder"
+output_path<-"output folder"
 
 # Import
 setwd(input_path)
 df <- read_dta(file = "dataset_final_normalized2014.dta") #can be used on both 2014 or 2015 normalized data
+fig1data<-read.csv("Dataset_normalized2014.csv") # Used only to plot figure 1
 codebook_goods <- read.csv("Codebook.csv")
 setwd(output_path)
 
@@ -102,7 +103,54 @@ bottom20<-results[order(as.numeric(as.character(results$DiD_estimate))),][1:20,]
 unaffected20<-results[order(abs(results$DiD_estimate)),][1:20,]
 
 
-# Figure 1: All-items HICP plot with fitted value------------------------------
+# Figure 1: Prices in selected countries----------------------------------------
+
+# Data cleaning on data for all countries
+p1data<-filter(fig1data, ï..Country=="France" & Good.type=="All-items HICP")
+p1data[2,]<-filter(fig1data, ï..Country=="Denmark" & Good.type=="All-items HICP")
+p1data[3,]<-filter(fig1data, ï..Country=="United Kingdom" & Good.type=="All-items HICP")
+p1data[4,]<-filter(fig1data, ï..Country=="Switzerland" & Good.type=="All-items HICP")
+
+p1data<-rename(p1data, Country=ï..Country)
+p1data<-subset(p1data,select=-c(Good.type))
+
+p1data<-reshape(p1data, 
+                direction = "long",
+                varying = list(names(p1data)[2:25]),
+                v.names = "Value",
+                idvar = "Country",
+                timevar = "Month",
+                times = 1:24)
+
+p1data <- p1data[order(p1data$Country),]
+p1data$Value <- as.numeric(as.character(p1data$Value))
+p1data$Country <- factor(p1data$Country, levels = c("United Kingdom", "France", "Denmark", "Switzerland"))
+
+# Plot figure 1
+p1<-ggplot(p1data)+
+  theme_classic() +
+  geom_line(aes(x = Month, y = Value, color=Country))+
+  labs(y = "",
+       x = "") +
+  geom_vline(xintercept = 13,linetype="dashed")+
+  annotate("text", x=1.5, y=102, label= "Prices",color="grey31",size=5.5) + 
+  theme(axis.title = element_text(),
+        legend.title = element_blank(),
+        axis.text = element_text(size=14),
+        legend.text = element_text(size=14),
+        legend.position = "bottom",
+        legend.margin=margin(0,0,0,0),
+        legend.box.margin=margin(-15,0,0,0),
+        plot.margin = unit(c(0.1,0.1,0,-0.4), "cm"))+
+  scale_color_manual(values = c( "#000000","#1a00db","#1c9900", "#d40000"))+
+  scale_x_continuous(labels = months_quarters_labels3, breaks = n24_2)+
+  ylim(99,102)
+
+pdf("fig1.pdf", width=6, height=3.5)
+p1
+dev.off()
+
+# Figure 2: All-items HICP plot with fitted value------------------------------
 didreg = lm(x_17 ~ treated + time + did, data = df)
 euro_before<-didreg$fitted.values[1]
 euro_after<-didreg$fitted.values[18]
@@ -132,12 +180,12 @@ p1_fitted <- ggplot(df) +
   scale_x_continuous(labels = months_quarters_labels3, breaks = n24_2)+
   ylim(99,102.2)
 
-pdf("fig1.pdf", width=6, height=3.5)
+pdf("fig2.pdf", width=6, height=3.5)
 p1_fitted
 dev.off()
 
 
-# Figure 2: Fuel+Holidays+Books plot with fitted value--------------------------
+# Figure 3: Fuel+Holidays+Books plot with fitted value--------------------------
 
 #Fuel
 didreg1<-lm(x_198 ~ treated + time + did, data = df)
@@ -145,7 +193,7 @@ euro_before1<-didreg1$fitted.values[1]
 euro_after1<-didreg1$fitted.values[18]
 CH_before1<-didreg1$fitted.values[28]
 CH_after1<-didreg1$fitted.values[45]
-
+  
 p2_fitted <- ggplot(df) +
   theme_classic() + 
   ggtitle("a) Liquid fuels")+
@@ -234,7 +282,7 @@ p4_fitted <- ggplot(df) +
 
 # grid display of the 3
 p2<-ggarrange(p2_fitted, p3_fitted, p4_fitted, nrow=1,common.legend = TRUE, legend="bottom")
-pdf("fig2.pdf", width=12.5, height=4)
+pdf("fig3.pdf", width=12.5, height=4)
 p2
 dev.off()
 
@@ -279,3 +327,5 @@ for (i in 1:108) {
 results_bis<-results_bis[c(1,2)]
 row.names(results_bis) <- NULL
 stargazer(results_bis,summary=FALSE,column.sep.width = "-13pt", digits=5)
+
+
