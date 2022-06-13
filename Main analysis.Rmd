@@ -1,0 +1,360 @@
+---
+title: "Main analysis"
+output:
+  html_document: 
+    toc: yes
+editor_options:
+  chunk_output_type: console
+---
+
+## 1)  Setup
+
+Goals:
+
+  * Setup libraries
+  * Setup input/output folders paths 
+  * Import data
+
+
+```{r setup,message = FALSE, warning=FALSE, eval=FALSE}
+library(tidyverse)
+library(haven)
+library(ggplot2)
+library(ggthemes)
+library(sjlabelled)
+library(foreign)
+library(dplyr)
+library(stargazer)
+library(ggpubr)
+library(stats)
+library(lmtest)
+library(devtools)
+library(synthdid)
+#devtools::install_github("synth-inference/synthdid")
+
+rm(list = ls())
+graphics.off()
+input_path<-"path here"
+output_path<-"path here"
+
+# Import
+setwd(input_path)
+df <- read_dta(file = "dataset_final_normalized2014.dta") #can be used on both 2014 or 2015 normalized data
+reg_data<-read.csv("results_with_import.csv")
+codebook_goods <- read.csv("Codebook.csv")
+df_synth <- read_dta(file = "synthetic_dataset.dta") 
+setwd(output_path)
+```
+
+
+## 2)  Data cleaning
+
+Goals:
+
+  * Relabel the countries
+  * Drop N/A
+  * Remove goods that have a constant value (used for prices that were not measured monthly)
+
+```{r, eval=FALSE}
+#Useful variables for future graph labeling
+months_quarters_labels3<-c("jan14", "jul14", "jan15", "jul15")
+n24_2=seq(1,24,6)
+
+#Relabel Country
+df<-remove_all_labels(df)
+for (i in 1:48) {
+  if (df[i,1]==2) {
+    df[i,1]<-"Switzerland"
+  }
+  else {
+    df[i,1]<-"Euro-Zone"   
+  }
+}
+
+# Remove unusable variables
+df<-df[ , colSums(is.na(df)) == 0] # Drop the N/A
+
+try((
+  for (i in 3:length(df)) { # Removes variable with a constant value for CH in 2014
+  if(df[32,i]-df[33,i]==0) {
+    df<-df[-c(i)]
+    }
+  } 
+  ), silent=TRUE
+)
+
+try((
+  for (i in 3:length(df)) { # Removes variable with a constant value for CH in 2015
+  if(df[40,i]-df[41,i]==0) {
+    df<-df[-c(i)]
+    }
+  } 
+), silent=TRUE
+)
+```
+
+## 3)  Alternative control groups
+
+Goal: Compute the mean pre-trends of the alternative control groups.
+
+```{r, eval=FALSE}
+# Preallocate memory
+control_results <- data.frame(matrix(ncol = 6, nrow = 2))
+colnames(control_results) <- c("Europe", "Exclud southern", "Germanic", "Direct neighbours", "Non-EUR","High Gdp")
+
+graph_data<-data.frame(matrix(ncol = 8, nrow = 24))
+colnames(graph_data) <- c("Month","Europe", "Exclud southern", "Germanic", "Direct neighbours", "Non-EUR","High Gdp","Switzerland")
+graph_data$Month<-(1:24)
+  
+
+# Do the whole pre-trend analysis for each different control group ----------
+filename<-c("dataset_final_normalized2015.dta","alternative_southexclud.dta","alternative_germanic.dta",
+            "alternative_neighbours.dta","alternative_noneur.dta","alternative_highgdp.dta")
+
+for (s in 1:6) {
+  #Input
+  setwd(input_path)
+  df <- read_dta(file = filename[s])
+  setwd(output_path)
+  
+  #Data cleaning
+  df<-remove_all_labels(df)
+  for (i in 1:48) {
+    if (df[i,1]==2) {
+      df[i,1]<-"Switzerland"
+    }
+    else {
+      df[i,1]<-"Euro-Zone"   
+    }
+  }
+  df<-df[ , colSums(is.na(df)) == 0] # Drop the N/A
+  
+  try((
+    for (i in 3:length(df)) { # Removes variable with a constant value for CH in 2014
+    if(df[32,i]-df[33,i]==0) {
+      df<-df[-c(i)]
+    }
+    } 
+  ), silent=TRUE)
+  
+  try((
+    for (i in 3:length(df)) { # Removes variable with a constant value for CH in 2015
+    if(df[40,i]-df[41,i]==0) {
+      df<-df[-c(i)]
+    }
+  } 
+  ),silent=TRUE)
+  
+  # Pre-trend testing
+  results <- data.frame(matrix(ncol = 0, nrow = ncol(df)-2))
+  results$beta1_EU<-0
+  results$se_b1_EU<-0
+  results$beta1_CH<-0
+  results$se_b1_CH<-0
+  
+  for (i in 1:(ncol(df)-2)) {
+    col<-i+2
+    df_pretrend<-cbind(df[1:12,col],df[25:36,col])
+    colnames(df_pretrend)<-c("EU","CH")
+    df_pretrend<-data.frame(df_pretrend)
+    df_pretrend$time<-1:12
+    
+    #OLS coefficients
+    coef<-lm(EU~time,df_pretrend)
+    results[i,1]<-coef$coefficients[2]
+    results[i,2]<-summary(coef)$coefficients[2,2]
+    coef<-lm(CH~time,df_pretrend)
+    results[i,3]<-coef$coefficients[2] 
+    results[i,4]<-summary(coef)$coefficients[2,2]
+  }
+  
+  # diff and Z stat
+  results$diff<-results$beta1_EU - results$beta1_CH
+  results$Z_stat<-(results$beta1_EU - results$beta1_CH)/sqrt((results$se_b1_EU^2)+(results$se_b1_CH^2))
+  
+  # Save the results
+  control_results[1,s]<-mean(results$diff)
+  control_results[2,s]<-mean(results$Z_stat)
+  graph_data[,(s+1)]<-df$x_17[1:24]
+  
+}
+
+graph_data$Switzerland<-df$x_17[25:48]
+
+# Export results--------------------------------------------
+write.csv(control_results,"control_results.csv")
+write.csv(graph_data,"control_graph_data.csv")
+
+```
+
+## 4)  Standard DiD
+
+Goal: run a standard DiD for each category of good using a loop. The treatment starts in January 2015 for Switzerland only
+
+```{r, eval=FALSE}
+# DiD settings
+df$time <- ifelse(df$month >= 14, 1, 0)
+df$treated <- ifelse(df$country == "Switzerland", 1, 0)
+df$did <- df$time * df$treated
+
+# Some setups
+n=ncol(df)-5
+var<-colnames(df)
+var<-var[-c(1,2,n-2,n-1,n)]
+results <- data.frame(matrix(ncol = 5, nrow = 0))
+x <- c("Goodnumber", "Goodtype", "DiD_estimate", "Std._Error","P_value")
+colnames(results) <- x
+
+#Regress a DID over each type of goods:
+for (i in 1:n) {
+  didreg = lm(as.formula(paste(var[i], "~",
+                               paste(var[c(n-2, n-1, n)], collapse = "+"),
+                               sep = "")), data = df)
+  goo<-as_numeric(substring(var[i],3))
+  goo2<-toString(codebook_goods[goo,2])
+  est<-summary(didreg)$coefficients[4,1]
+  st<-summary(didreg)$coefficients[4,2]
+  pval<-summary(didreg)$coefficients[4,4]
+  results[nrow(results) + 1,] = c(goo,goo2,est,st,pval)
+} #yields an error due to the latest update on lm coefficients display changes but still works
+
+# Convert to numeric
+results$DiD_estimate <- as.numeric(as.character(results$DiD_estimate))
+results$Std._Error <- as.numeric(as.character(results$Std._Error))
+results$P_value <- as.numeric(as.character(results$P_value))
+
+# Placeholder for later
+results$elasticity<-(results$DiD_estimate/100)/((1.08-1.201)/1.201)
+```
+
+## 5)  Synthetic DiD
+
+Goal: Same as (4) but with a synthetic DiD
+
+```{r, eval=FALSE}
+
+# Add new results columns
+results['DiD_Synth'] <- NA
+results['SE_Synth'] <- NA
+results['PVAL_Synth'] <- NA
+
+# Loop over each sector
+for (i in 1:nrow(results)) {
+  good_code<-paste("x_",results[i,1],sep="")
+
+  # Isolate the correct sector
+  df_single<-df_synth[c("country","month",good_code,"treated")]
+  df_single$month <- as.integer(df_single$month) 
+  df_single$treated <- as.integer(df_single$treated) 
+  
+  # Recode the dataframe to make the format match the synth DiD package requirements 
+  sector_df<-data.frame(matrix(ncol = 4, nrow = 816))
+  for (col in 1:4) {
+    for (row in 1:816) {
+      sector_df[row,col]<-df_single[row,col]
+    }
+  }
+  sector_df$X1<-as.factor(sector_df$X1) 
+  
+  # Remove missing countries
+  country_list<-as.vector(unlist(unique(sector_df[1])))
+  for (p in country_list) {
+    subset<-sector_df[sector_df['X1']==p,]
+    if (number_na<-sum(is.na(subset))>0) {
+      sector_df<-subset(sector_df, X1!=p)
+    }
+  }
+  
+  # Synthetic DiD
+  setup = panel.matrices(sector_df)
+  estimate = synthdid_estimate(setup$Y, setup$N0, setup$T0)
+  se = sqrt(vcov(estimate, method='placebo'))
+  
+  # Results
+  results[i,7]<-estimate[1]
+  results[i,8]<-se[1]
+}
+
+# Compute implied elasticity
+results$elasticity<-(results$DiD_Synth/100)/((1.08-1.201)/1.201)
+
+
+```
+
+## 6)  Pre-trend testing
+
+Goal: test the pre-trend assumption by running two standard OLS on the pre-treatment time, and comparing the slope coefficient of Switzerland and Euro-zone
+
+```{r, eval=FALSE}
+
+# Initialize all results variables
+results$ccf<-0
+results$beta0_EU<-0
+results$beta1_EU<-0
+results$se_b1_EU<-0
+results$beta0_CH<-0
+results$beta1_CH<-0
+results$se_b1_CH<-0
+
+# For each good, compute CCF and OLS coefficients
+for (i in 1:n) {
+  col<-i+2
+  df_pretrend<-cbind(df[1:12,col],df[25:36,col])
+  colnames(df_pretrend)<-c("EU","CH")
+  df_pretrend<-data.frame(df_pretrend)
+  df_pretrend$time<-1:12
+  
+  #CCF
+  results[i,9]<-ccf(df_pretrend$EU,df_pretrend$CH,plot=FALSE)$acf[8]
+  
+  #OLS coefficients
+  coef<-lm(EU~time,df_pretrend)
+  results[i,10]<-coef$coefficients[1]
+  results[i,11]<-coef$coefficients[2]
+  results[i,12]<-summary(coef)$coefficients[2,2]
+  coef<-lm(CH~time,df_pretrend)
+  results[i,13]<-coef$coefficients[1]
+  results[i,14]<-coef$coefficients[2] 
+  results[i,15]<-summary(coef)$coefficients[2,2]
+}
+
+
+# Correction: var 451,452,456 are dropped by DiD
+for (i in 7:13) {
+  results[117,i]<-results[120,i]
+  results[118,i]<-results[121,i]
+}
+results<-results[-c(119,120,121),]
+
+
+# Compute the Z stat
+results$Z_stat<-(results$beta1_EU - results$beta1_CH)/sqrt((results$se_b1_EU^2)+(results$se_b1_CH^2))
+```
+
+## 7)  EUR and import shares
+
+Goal: regress the goods elasticities on the import share and EUR share for selected retail classes matching some of the classes of Auer et al. (2021) 
+
+```{r, eval=FALSE}
+# All regressions
+# Reg elasticity on import share
+reg1<-lm(elasticity ~ Imp_Share, data = reg_data)
+
+# Reg elasticity on EUR invoice
+reg2<-lm(elasticity ~ AUER_EURshare, data = reg_data)
+
+# Reg elasticity on import share + EUR invoice
+reg3<-lm(elasticity ~ Imp_Share + AUER_EURshare, data = reg_data)
+
+# Reg elasticity on import share + EUR invoice + interaction
+reg4<-lm(elasticity ~ Imp_Share + AUER_EURshare + (Imp_Share*AUER_EURshare), data = reg_data)
+
+stargazer(reg1, reg2, reg3,reg4,
+           dep.var.labels = c("(1)","2", "3","4"),
+           column.labels = c(""),
+           covariate.labels = c("Intercept (B0)", "ImportShare (B1)", "EURshare (B2)", "Interaction (B3)"),
+           digits = 2, intercept.bottom = FALSE )
+
+# Export final results
+write.csv(results,"results.csv")
+```
