@@ -3,7 +3,7 @@ Replication code for the paper **Alternative estimates of the exchange rate pass
 The paper as well as my contact email address are available on my website (https://alex-oktay.com/). The files require both R and Stata.
 
 Repository content:
-- The **Main analysis** R-Markdown file contains the code for the data cleaning, DID, Synthetic DID, pre-trend analysis, alternative controls, tradability analysis, and import share analysis presented in the paper. An **Easy-to-read version** of the code is provided in HTML (simply download the file and open it with an internet broweser, or copy and paste the content into an HTML viewer such as: https://codebeautify.org/htmlviewer).
+- The **Main analysis** R-Markdown file contains the code for the data cleaning, DID, Synthetic DID, pre-trend analysis, alternative controls, tradability analysis, and import share analysis presented in the paper. An **Easy-to-read version** of the code is provided in HTML and can be viewed here: https://htmlpreview.github.io/?https://github.com/AlexOktay/Replication-2021a/blob/main/Easy-to-read%20version.html
 - The **Data preparation** folder contains the data cleaning files used to prepare the data for the synthetic DID and alternative controls
 - The **Inputs** folder contains all the necessary data, including the intermediate datasets generated in the data preparation
 - The **Code of the main figures** folder contains the code that prepares the data and generate the 5 figures presented in the paper
