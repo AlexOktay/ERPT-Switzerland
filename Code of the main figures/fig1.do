@@ -2,79 +2,48 @@ clear all
 set more off, permanently
 cd "input path"   // change to the input folder
 
-
 ************************** Euro-zone Figure ************************************
 use dataset_final_normalized2014
 keep country month x_17 
 
+
+// Base plot
 set scheme s2mono
-graph twoway (line x_17 month if country==1) ///
-(line x_17 month if country==2, xline(13) xtitle("") ytitle("Price index") xlabel(1 "Jan14" 7 "July14" 13 "Jan15" 19 "July15" 24 "Dec15") graphregion(color(white))) ///
-, legend( label (1 "Euro-zone") label (2 "Switzerland")) name(p1, replace)
-
-graph export "output_path/fig1.pdf", replace // Change to the output path here
+graph twoway (line x_17 month if country==2, lcolor(cranberry) lwidth(0.5) xline(13) xtitle("") ytitle("Price index") xlabel(1 "Jan14" 7 "July14" 13 "Jan15" 19 "July15" 24 "Dec15") graphregion(color(white))) ///
+(line x_17 month if country==1, lcolor(navy) lpattern(solid) lwidth(0.5)) ///
+, legend( label (2 "Europe (excl. Switzerland)") label (1 "Switzerland")) name(p1, replace)
 
 
+//  Plot with EURCHF data
+gen eurchf=.
+replace eurchf = 1.2231 if month== 1 & country==1
+replace eurchf = 1.216 if month== 2 & country==1
+replace eurchf = 1.2199 if month== 3 & country==1
+replace eurchf = 1.2195 if month== 4 & country==1
+replace eurchf = 1.221 if month== 5 & country==1
+replace eurchf = 1.2151 if month== 6 & country==1
+replace eurchf = 1.2165 if month== 7 & country==1
+replace eurchf = 1.2061 if month== 8 & country==1
+replace eurchf = 1.2065 if month== 9 & country==1
+replace eurchf = 1.2059 if month== 10 & country==1
+replace eurchf = 1.2018 if month== 11 & country==1
+replace eurchf = 1.2025 if month== 12 & country==1
+replace eurchf = 1.0442 if month== 13 & country==1
+replace eurchf = 1.0668 if month== 14 & country==1
+replace eurchf = 1.0455 if month== 15 & country==1
+replace eurchf = 1.0493 if month== 16 & country==1
+replace eurchf = 1.0342 if month== 17 & country==1
+replace eurchf = 1.0377 if month== 18 & country==1
+replace eurchf = 1.0536 if month== 19 & country==1
+replace eurchf = 1.0793 if month== 20 & country==1
+replace eurchf = 1.0926 if month== 21 & country==1
+replace eurchf = 1.0867 if month== 22 & country==1
+replace eurchf = 1.0906 if month== 23 & country==1
+replace eurchf = 1.0817 if month== 24 & country==1
 
-************************** Countries figure ************************************
-* Used to compare Switzerland to other specific countries
-* Not used in the final version of the paper
+graph twoway (line x_17 month if country==2, lcolor(cranberry) lwidth(0.5) xline(13) xtitle("") ytitle("Price index") xlabel(1 "Jan14" 7 "July14" 13 "Jan15" 19 "July15" 24 "Dec15") graphregion(color(white)) yaxis(1)) ///
+(line x_17 month if country==1, lcolor(navy) lpattern(solid) lwidth(0.5) yaxis(1)) ///
+(line eurchf month if country==1,yaxis(2) lcolor(navy) lpattern(dash)) ///
+, legend( label (2 "European consumer prices") label (1 "Swiss consumer prices") label (3 "EUR/CHF (rhs)")) name(p1, replace)
 
-clear all
-cd "input path"   // change to the input folder
-import delimited "Dataset_normalized2014.csv", varnames(1) 
-
-// data cleaning
-rename jan14 month_1
-rename feb14 month_2
-rename mar14 month_3
-rename apr14 month_4
-rename may14 month_5
-rename jun14 month_6
-rename jul14 month_7
-rename aug14 month_8
-rename sep14 month_9
-rename oct14 month_10
-rename nov14 month_11
-rename dec14 month_12
-rename jan15 month_13
-rename feb15 month_14
-rename mar15 month_15
-rename apr15 month_16
-rename may15 month_17
-rename jun15 month_18
-rename jul15 month_19
-rename aug15 month_20
-rename sep15 month_21
-rename oct15 month_22
-rename nov15 month_23
-rename dec15 month_24
-
-//reshaping
-gen id = country+"_"+goodtype
-encode goodtype, gen(goodtype_encoded)
-log using codebook.txt, text replace
-codebook goodtype_encoded, tabulate (500)
-log close
-reshape long month_, i(id) j(month)
-rename month_ value
-drop id
-gen id2 = country+"_"+string(month)
-drop goodtype
-reshape wide value, i(id2) j(goodtype_encoded)
-drop id2
-order country month
-
-// convert strings to numeric
-forvalues i=1/468 {
-	gen x_`i' = real(value`i')
-	drop value`i'
-}
-
-// plot
-keep country month x_17
-set scheme s2mono
-
-graph twoway (line x_17 month if country=="Switzerland",sort) /// 
-(line x_17 month if country=="United Kingdom",sort xline(13)) ///
-, name(p1, replace)
+graph export "outputpath/fig1.pdf", replace
