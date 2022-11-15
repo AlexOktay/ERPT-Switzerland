@@ -1,54 +1,42 @@
 clear all
 set more off, permanently
 cd "input path"   // change to the input folder
-import delimited "tradability_data.csv"
-
-***************************** ALL GOODS TOGETHER *******************************
-
-// Graph tradability on elasticity
-set scheme lean2
-graph twoway (qfitci tradability elasticity) (scatter tradability elasticity), name(p1, replace)
-
-// With absolute value
-gen elabsolute = abs(elasticity)
-graph twoway (qfitci tradability elabsolute) (scatter tradability elabsolute), name(p1abs, replace)
-
-// With log-tradability
-gen log_trade = ln(tradability)
-graph twoway (lfitci log_trade elabsolute) (scatter log_trade elabsolute, xtitle("Absolute pass-through") ytitle("Log tradability") title("a) All goods", size(medlarge)) leg(off)), name(p1log, replace)
 
 
-********************************* BY CATEGORY **********************************
+* Import datasets
+import delimited "control_graph_data.csv"
+save control.dta, replace
 
-// Subsets of the data by good category
-frame copy default retail
-frame copy default service
-frame copy default hh
-frame copy default other
+clear *
+import delimited "synthetic_weights.csv"
+save synthetic_weights.dta, replace
 
-// Retail goods only
-frame change retail
-keep if cat=="RETAIL"
-graph twoway (lfitci log_trade elabsolute) (scatter log_trade elabsolute, leg(off) title("b) Food & Beverages", size(medlarge)) xtitle("Absolute pass-through") ytitle("Log tradability") ylabel(-2 0 2 4 6 8) ysc(r(-2 8))), name(p2, replace)
+use synthetic_dataset, replace
+merge m:1 country using synthetic_weights
+drop _merge
+* No weight:hungary slovakia finland
 
-// Service only
-frame change service
-keep if cat=="SER"
-graph twoway (lfitci log_trade elabsolute) (scatter log_trade elabsolute, leg(off) title("d) Services", size(medlarge)) xtitle("Absolute pass-through") ytitle("Log tradability") ylabel(-2 0 2 4 6 8) ysc(r(-2 8))), name(p3, replace)
+* Aggregate using the synthetic weights
+keep country month x_17 weight_normalized
+gen price = x_17*weight_normalized
+replace price = x_17 if country=="Switzerland"
+gen groupID=1
+replace groupID =2 if country != "Switzerland"
+bysort groupID month: egen price_synth = sum(price)
+keep if country == "Switzerland" | country=="Portugal"
+keep price_synth groupID month
+reshape wide price_synth, i(month) j(groupID)
 
-// HH goods only
-frame change hh
-keep if cat=="HH"
-graph twoway (lfitci log_trade elabsolute) (scatter log_trade elabsolute, leg(off) title("c) Household products", size(medlarge)) xtitle("Absolute pass-through") ytitle("Log tradability") ylabel(-2 0 2 4 6 8) ysc(r(-2 8))), name(p4, replace)
+* Merge with baseline data
+merge 1:1 month using control
+drop _merge
 
-// Other goods only
-frame change other
-keep if cat=="OTHER"
-graph twoway (lfitci log_trade elabsolute) (scatter log_trade elabsolute, leg(off) title("e) Industrial and other goods", size(medlarge)) xtitle("Absolute pass-through") ytitle("Log tradability") ylabel(-2 0 2 4 6 8) ysc(r(-2 8))), name(p5, replace)
-
-// Combine the figures
-graph combine p2 p4 p3 p5, name(p6, replace) imargin(0)
-graph combine p1log p6, col(1) name(p7, replace)
-graph display p7, ysize(11) xsize(8)
-
+* Plot
+set scheme s2mono
+graph twoway (line price_synth2 month, lpattern(solid) lcolor(navy)  lwidth(0.5)) ///
+ (line europe month, lpattern(dash) lcolor(navy)  lwidth(0.4)) ///
+ (line price_synth1 month, lpattern(solid) lcolor(cranberry)  lwidth(0.5)),  ///
+ legend( label (1 "Europe (synthetic)") label (2 "Europe (baseline)") label (3 "Switzerland")) xtitle("") ytitle("Price") xlabel(1 "Jan14" 7 "July14" 13 "Jan15" 19 "July15" 24 "Dec15") graphregion(color(white)) xline(13, lpattern(dash)) name(p1, replace)
+ 
+* Export
 graph export "output_path/fig4.pdf", replace // Change to the output path here
