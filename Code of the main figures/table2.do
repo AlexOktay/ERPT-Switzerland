@@ -1,9 +1,7 @@
 clear all
 set more off, permanently
-//cd "input path"   // change to the input folder
-cd "U:\0. Documents\4. Academic\ERPT\Version 2 R\Replication-2021a-main\Inputs"
+cd "input path"   // change to the input folder
 import delimited "tradability_data.csv"
-*sysdir set PLUS \\oekappl\stata\ado
 
 * TRADABILITY
 replace tradability = 1 if tradability==0 // for the log
@@ -39,5 +37,3 @@ eststo reg5
 
 * Esttab
 esttab reg1 reg2 reg3 reg5 reg4  using "U:\0. Documents\4. Academic\ERPT\Version 2 R\Replication-2021a-main\Output/tablereg.tex", se star(* 0.10 ** 0.05 *** 0.01)  stats(N r2 r2_a, fmt(%9.0g %9.2f %9.2f)) replace
-
-// mtitles("Total" "Swiss share" "US share") mgroups("Domestic" "Foreign", pattern(1 0 1)) collabels(none) b(%9.2f) se(%9.2f) noabbrev se nonumbers label  stats(N share, fmt(%9.0fc %9.2f) labels("Observations" "Share")) replace
