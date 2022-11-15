@@ -239,6 +239,8 @@ results['SE_Synth'] <- NA
 results['PVAL_Synth'] <- NA
 
 # Loop over each sector
+k <-10 # Number of removed countries for standard-error adjustment
+countrylist <- levels(factor(df_synth$country))
 for (i in 1:nrow(results)) {
   good_code<-paste("x_",results[i,1],sep="")
 
@@ -246,6 +248,17 @@ for (i in 1:nrow(results)) {
   df_single<-df_synth[c("country","month",good_code,"treated")]
   df_single$month <- as.integer(df_single$month) 
   df_single$treated <- as.integer(df_single$treated) 
+  
+  # Remove the k largest variances
+  varlist <- data.frame()
+  for (p in 1:length(countrylist)) {
+   varlist[p,1] <- countrylist[p]
+   varlist[p,2] <- var(subset(df_single, country == countrylist[p])[3])[[1]]
+  }
+  varlist <- subset(varlist,V1!="Switzerland")  # Exclude CH
+  varlist <- varlist[order(-varlist$V2),]
+  excludedcountries <- varlist[1:k,1]
+  df_single <- df_single[!df_single$country %in% excludedcountries,]
   
   # Recode the dataframe to make the format match the synth DiD package requirements 
   sector_df<-data.frame(matrix(ncol = 4, nrow = 816))
@@ -269,6 +282,7 @@ for (i in 1:nrow(results)) {
   setup = panel.matrices(sector_df)
   estimate = synthdid_estimate(setup$Y, setup$N0, setup$T0)
   se = sqrt(vcov(estimate, method='placebo'))
+  #weights <- synthdid_controls(estimate) # If you want to export the udnerlying weights
   
   # Results
   results[i,7]<-estimate[1]
