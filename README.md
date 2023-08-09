@@ -1,6 +1,6 @@
 # Pass-through heterogeneity paper replication code
 Replication code for the paper **Heterogeneity in the exchange rate pass-through to consumer prices: the Swiss franc appreciation of 2015**. 
-The paper as well as my contact email address are available on my website (https://alex-oktay.com/). The files require both R and Stata.
+The paper as well as my contact email address are available on my website (https://alexoktay.com/). The files require both R and Stata.
 
 Repository content:
 - The **Main analysis** R-Markdown file contains the code for the data cleaning, DID, Synthetic DID, pre-trend analysis, alternative controls, tradability analysis, and import share analysis presented in the paper. 
